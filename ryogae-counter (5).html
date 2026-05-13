@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>両替金カウンター</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #f5f7fa;
+    --border: #d8e0ea;
+    --accent: #2563eb;
+    --text: #1e2a3a;
+    --text-sub: #6b7a90;
+    --red: #dc2626;
+    --green: #16a34a;
+    --bou-bg: #fdecea;   --bou-border: #f5b8b2; --bou-color: #a82020;
+    --coin-bg: #fdf3e7;  --coin-border: #e8c98a; --coin-color: #7a4a10;
+    --note-bg: #e8f0fe;  --note-border: #93b4f5; --note-color: #1a3a8f;
+    --other-color: #b45309;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @keyframes flash-yellow {
+    0%   { background-color: #f0f4f8; }
+    25%  { background-color: #ffe44d; }
+    100% { background-color: #f0f4f8; }
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 10px 12px 28px;
+  }
+  body.flash { animation: flash-yellow 0.6s ease-out forwards; }
+
+  #confetti-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 9999;
+  }
+  #celebration-msg {
+    display: none;
+    position: fixed; top: 50%; left: 55%;
+    transform: translate(-50%, -50%) scale(0);
+    z-index: 10000;
+    font-size: 2.2rem; font-weight: 700; color: #fff;
+    text-shadow: 0 0 20px #f59e0b, 0 0 50px #ef4444;
+    white-space: nowrap; pointer-events: none;
+  }
+  @keyframes pop-msg {
+    0%   { transform: translate(-50%,-50%) scale(0); opacity:0; }
+    30%  { transform: translate(-50%,-50%) scale(1.3); opacity:1; }
+    70%  { transform: translate(-50%,-50%) scale(1.0); opacity:1; }
+    100% { transform: translate(-50%,-50%) scale(1.1); opacity:0; }
+  }
+  #celebration-msg.show { display: block; animation: pop-msg 2s ease-out forwards; }
+
+  #flash-overlay {
+    display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+    z-index: 9998; pointer-events: none;
+  }
+  @keyframes flash-overlay-anim {
+    0%   { opacity:0;    background:#fff; }
+    15%  { opacity:0.92; background:#ffe44d; }
+    45%  { opacity:0.5;  background:#f59e0b; }
+    100% { opacity:0;    background:#fff; }
+  }
+  #flash-overlay.show { display:block; animation: flash-overlay-anim 0.8s ease-out forwards; }
+
+  .header-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 5px;
+  }
+  h1 {
+    font-size: 1rem; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--accent); white-space: nowrap; flex-shrink: 0;
+  }
+  .name-input {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.92rem;
+    padding: 5px 28px 5px 10px;
+    flex: 1; min-width: 0;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .name-input:focus { outline: none; border-color: var(--accent); }
+
+  .datetime-bar {
+    text-align: center; font-size: 1rem; font-weight: 700;
+    color: var(--red); margin-bottom: 8px; letter-spacing: 0.06em;
+  }
+
+  .total-card {
+    background: var(--accent); border-radius: 10px; padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; box-shadow: 0 3px 12px rgba(37,99,235,0.22);
+  }
+  .total-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; color: rgba(255,255,255,0.85); }
+  .total-amount { font-size: 1.5rem; font-weight: 700; color: #fff; }
+
+  .diff-card {
+    border-radius: 8px; padding: 8px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px; font-weight: 700;
+  }
+  .diff-card.over  { background: #dcfce7; border: 1.5px solid #86efac; }
+  .diff-card.under { background: #fee2e2; border: 1.5px solid #fca5a5; }
+  .diff-card.even  { background: #fefce8; border: 1.5px solid #fde047; }
+  .diff-label { font-size: 0.8rem; color: var(--text-sub); }
+  .diff-amount { font-size: 1.1rem; }
+  .diff-amount.over  { color: var(--green); }
+  .diff-amount.under { color: var(--red); }
+  .diff-amount.even  { color: #92400e; }
+
+  .card { border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; }
+  .card-bou   { background: var(--bou-bg);  border: 1.5px solid var(--bou-border); }
+  .card-coin  { background: var(--coin-bg); border: 1.5px solid var(--coin-border); }
+  .card-note  { background: var(--note-bg); border: 1.5px solid var(--note-border); }
+  .card-other { background: var(--surface); border: 1px solid var(--border); }
+
+  .section-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.18em;
+    margin-bottom: 5px; padding-left: 8px; border-left: 3px solid currentColor;
+  }
+  .label-bou   { color: var(--bou-color); }
+  .label-coin  { color: var(--coin-color); }
+  .label-note  { color: var(--note-color); }
+  .label-other { color: var(--other-color); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 0.68rem; letter-spacing: 0.06em; color: var(--text-sub);
+    text-align: right; padding: 0 4px 4px; font-weight: 500;
+  }
+  thead th:first-child { text-align: left; }
+  tbody tr { border-top: 1px solid rgba(0,0,0,0.07); }
+  tbody td { padding: 4px 3px; font-size: 0.92rem; text-align: right; vertical-align: middle; }
+  tbody td:first-child { text-align: left; }
+
+  .denom-main { font-weight: 600; font-size: 0.92rem; }
+  .denom-sub  { font-size: 0.67rem; display: block; margin-top: 1px; opacity: 0.65; }
+
+  .input-wrap { display: flex; align-items: center; gap: 3px; justify-content: flex-end; }
+
+  input[type="number"] {
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 6px; color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.95rem; font-weight: 500;
+    padding: 4px 6px; text-align: right; width: 58px;
+    -moz-appearance: textfield; transition: border-color 0.15s;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus { outline: none; border-color: var(--accent); background: #fff; }
+
+  .unit { font-size: 0.7rem; color: var(--text-sub); }
+  .subtotal { font-size: 0.92rem; font-weight: 600; color: var(--text); min-width: 68px; }
+
+  .other-label-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 0.78rem;
+    padding: 4px 24px 4px 7px; width: 100%;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center; cursor: pointer;
+  }
+  .other-label-input:focus { outline: none; border-color: var(--other-color); }
+
+  input.other-amount {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.95rem; font-weight: 500;
+    padding: 4px 6px; text-align: right; width: 78px;
+    -moz-appearance: textfield;
+  }
+  input.other-amount::-webkit-inner-spin-button,
+  input.other-amount::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input.other-amount:focus { outline: none; border-color: var(--other-color); }
+
+  .summary-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px; margin-bottom: 8px; margin-top: 6px;
+  }
+  .summary-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 6px;
+  }
+  .summary-item-label { font-size: 0.58rem; color: var(--text-sub); letter-spacing: 0.05em; margin-bottom: 1px; }
+  .summary-item-val { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+
+  .timer-bar {
+    background: #dc2626;
+    border: 1.5px solid #b91c1c;
+    border-radius: 8px;
+    padding: 7px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    transition: background 0.5s, border-color 0.5s;
+  }
+  .timer-bar.overtime { background: #111; border-color: #333; }
+  .timer-label { font-size: 0.68rem; color: #fff; letter-spacing: 0.1em; font-weight: 600; }
+  .timer-val { font-size: 1.1rem; font-weight: 700; color: #fff; letter-spacing: 0.05em; }
+  .timer-val.fast { color: #fde047; }
+
+  #firework-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 9997;
+  }
+
+  .btn-reset {
+    display: block; width: 100%; background: transparent;
+    border: 1px solid var(--border); color: var(--text-sub);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 0.82rem;
+    padding: 7px; border-radius: 8px; cursor: pointer;
+    letter-spacing: 0.1em; transition: all 0.15s; margin-top: 4px;
+  }
+  .btn-reset:hover { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<canvas id="firework-canvas"></canvas>
+<div id="flash-overlay"></div>
+<div id="celebration-msg">🎉 ちょうど10万円！ 🎉</div>
+
+<div class="header-row">
+  <h1>💴 両替金カウンターⅤ</h1>
+  <select class="name-input" id="staff-select">
+    <option value="">担当者を選択</option>
+    <option>立松</option><option>井上</option><option>松島</option>
+    <option>秦野</option><option>竹石</option><option>カタギリ</option>
+    <option>福田</option><option>ハシンタ</option><option>渡邉</option>
+    <option>タクシラ</option><option>ミン</option><option>ピャー</option>
+    <option>クルーA</option><option>クルーB</option>
+  </select>
+</div>
+
+<div class="datetime-bar" id="datetime-bar"></div>
+
+<div class="total-card">
+  <div class="total-label">合　計</div>
+  <div class="total-amount" id="grand-total">¥0</div>
+</div>
+
+<div class="diff-card under" id="diff-card">
+  <div class="diff-label">10万円との差額</div>
+  <div class="diff-amount under" id="diff-amount">-¥100,000　少ない</div>
+</div>
+
+<div class="card card-bou">
+  <div class="section-label label-bou">棒　金</div>
+  <table id="bou-table">
+    <thead><tr><th>種別</th><th>本数</th><th>小　計</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="card card-coin">
+  <div class="section-label label-coin">硬　貨</div>
+  <table id="coin-table">
+    <thead><tr><th>種別</th><th>枚数</th><th>小　計</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="card card-note">
+  <div class="section-label label-note">お　札</div>
+  <table id="note-table">
+    <thead><tr><th>種別</th><th>枚数</th><th>小　計</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="card card-other">
+  <div class="section-label label-other">その他お金</div>
+  <table>
+    <thead><tr><th>種別</th><th>金　額</th><th>小　計</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <select class="other-label-input">
+            <option value="">選択してください</option>
+            <option>大量両替袋</option>
+            <option>破れてるお金</option>
+            <option>破れてないけどヤバい金</option>
+            <option>調整の為に抜いて、落ち金BOXに入れたお金</option>
+            <option>その他お金</option>
+          </select>
+        </td>
+        <td>
+          <div class="input-wrap">
+            <span class="unit">¥</span>
+            <input type="number" class="other-amount" id="other-1" placeholder="0" oninput="calc()">
+          </div>
+        </td>
+        <td><div class="subtotal" id="st_other-1">¥0</div></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-item">
+    <div class="summary-item-label">棒　金</div>
+    <div class="summary-item-val" id="sum-bou">¥0</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-item-label">硬　貨</div>
+    <div class="summary-item-val" id="sum-coin">¥0</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-item-label">お　札</div>
+    <div class="summary-item-val" id="sum-note">¥0</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-item-label">その他</div>
+    <div class="summary-item-val" id="sum-other">¥0</div>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <div class="timer-label">⏱ カウント時間</div>
+  <div class="timer-val" id="timer-val">00:00</div>
+</div>
+
+<button class="btn-reset" onclick="resetAll()">すべてリセット</button>
+
+<script>
+(function() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const w = ['日','月','火','水','木','金','土'][now.getDay()];
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('datetime-bar').textContent =
+    `${y}年${m}月${d}日（${w}）　${hh}:${mm} 開始`;
+})();
+
+const bouDef = [
+  { id:'b1',   label:'1円棒金',   sub:'50枚入 ¥50',     val:50    },
+  { id:'b5',   label:'5円棒金',   sub:'50枚入 ¥250',    val:250   },
+  { id:'b10',  label:'10円棒金',  sub:'50枚入 ¥500',    val:500   },
+  { id:'b50',  label:'50円棒金',  sub:'50枚入 ¥2,500',  val:2500  },
+  { id:'b100', label:'100円棒金', sub:'50枚入 ¥5,000',  val:5000  },
+  { id:'b500', label:'500円棒金', sub:'50枚入 ¥25,000', val:25000 },
+];
+const coins = [
+  { id:'c1',   label:'1円',   val:1   },
+  { id:'c5',   label:'5円',   val:5   },
+  { id:'c10',  label:'10円',  val:10  },
+  { id:'c50',  label:'50円',  val:50  },
+  { id:'c100', label:'100円', val:100 },
+  { id:'c500', label:'500円', val:500 },
+];
+const notes = [
+  { id:'n1000',  label:'1,000円札',  val:1000  },
+  { id:'n5000',  label:'5,000円札',  val:5000  },
+  { id:'n10000', label:'10,000円札', val:10000 },
+  { id:'n2000',  label:'2,000円札',  val:2000  },
+];
+
+function buildTable(tableId, items, unit) {
+  const tbody = document.querySelector('#' + tableId + ' tbody');
+  items.forEach(function(item) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' +
+        '<span class="denom-main">' + item.label + '</span>' +
+        (item.sub ? '<span class="denom-sub">' + item.sub + '</span>' : '') +
+      '</td>' +
+      '<td><div class="input-wrap">' +
+        '<input type="number" id="' + item.id + '" min="0" placeholder="0" oninput="calc()">' +
+        '<span class="unit">' + unit + '</span>' +
+      '</div></td>' +
+      '<td><div class="subtotal" id="st_' + item.id + '">¥0</div></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+buildTable('bou-table',  bouDef, '本');
+buildTable('coin-table', coins,  '枚');
+buildTable('note-table', notes,  '枚');
+
+function getNum(id) {
+  var v = parseInt(document.getElementById(id).value, 10);
+  return isNaN(v) || v < 0 ? 0 : v;
+}
+function fmt(n) { return '¥' + n.toLocaleString('ja-JP'); }
+
+// ─── タイマー ───────────────────────────────────
+var timerStart = Date.now();
+var timerInterval = null;
+var timerStopped = false;
+var timerElapsed = 0;
+
+function formatTime(ms) {
+  var totalSec = Math.floor(ms / 1000);
+  var m = Math.floor(totalSec / 60);
+  var s = totalSec % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+timerInterval = setInterval(function() {
+  if (!timerStopped) {
+    timerElapsed = Date.now() - timerStart;
+    document.getElementById('timer-val').textContent = formatTime(timerElapsed);
+    var bar = document.querySelector('.timer-bar');
+    if (timerElapsed > 5 * 60 * 1000) {
+      bar.classList.add('overtime');
+    } else {
+      bar.classList.remove('overtime');
+    }
+  }
+}, 200);
+
+var prevWasExact = false;
+
+function calc() {
+  var sumBou=0, sumCoin=0, sumNote=0, sumOther=0;
+
+  bouDef.forEach(function(item) {
+    var s = getNum(item.id) * item.val;
+    document.getElementById('st_' + item.id).textContent = fmt(s);
+    sumBou += s;
+  });
+  coins.forEach(function(item) {
+    var s = getNum(item.id) * item.val;
+    document.getElementById('st_' + item.id).textContent = fmt(s);
+    sumCoin += s;
+  });
+  notes.forEach(function(item) {
+    var s = getNum(item.id) * item.val;
+    document.getElementById('st_' + item.id).textContent = fmt(s);
+    sumNote += s;
+  });
+
+  var v1 = getNum('other-1');
+  document.getElementById('st_other-1').textContent = fmt(v1);
+  sumOther = v1;
+
+  var total = sumBou + sumCoin + sumNote + sumOther;
+  document.getElementById('grand-total').textContent = fmt(total);
+  document.getElementById('sum-bou').textContent     = fmt(sumBou);
+  document.getElementById('sum-coin').textContent    = fmt(sumCoin);
+  document.getElementById('sum-note').textContent    = fmt(sumNote);
+  document.getElementById('sum-other').textContent   = fmt(sumOther);
+
+  var BASE = 100000;
+  var diff = total - BASE;
+  var card = document.getElementById('diff-card');
+  var amt  = document.getElementById('diff-amount');
+
+  card.className = 'diff-card';
+  amt.className  = 'diff-amount';
+
+  if (diff > 0) {
+    card.classList.add('over');
+    amt.classList.add('over');
+    amt.textContent = '+' + fmt(diff) + '　多い';
+    prevWasExact = false;
+  } else if (diff < 0) {
+    card.classList.add('under');
+    amt.classList.add('under');
+    amt.textContent = '-' + fmt(Math.abs(diff)) + '　少ない';
+    prevWasExact = false;
+  } else {
+    card.classList.add('even');
+    amt.classList.add('even');
+    amt.textContent = '🎉 ちょうど！';
+    if (!prevWasExact) {
+      // タイマーストップ
+      timerStopped = true;
+      var tv = document.getElementById('timer-val');
+      tv.textContent = formatTime(timerElapsed);
+
+      var isFast = timerElapsed <= 5 * 60 * 1000;
+      if (isFast) {
+        tv.classList.add('fast');
+      }
+
+      celebrate(isFast);
+    }
+    prevWasExact = true;
+  }
+}
+
+function celebrate(isFast) {
+  // フラッシュオーバーレイ
+  var overlay = document.getElementById('flash-overlay');
+  overlay.classList.remove('show');
+  void overlay.offsetWidth;
+  overlay.classList.add('show');
+  setTimeout(function() { overlay.classList.remove('show'); }, 800);
+
+  // 中央メッセージ
+  var msg = document.getElementById('celebration-msg');
+  msg.textContent = isFast ? '⚡ 速すぎる！凄い！ ⚡' : '🎉 ちょうど10万円！ 🎉';
+  msg.classList.remove('show');
+  void msg.offsetWidth;
+  msg.classList.add('show');
+  setTimeout(function() { msg.classList.remove('show'); }, 2200);
+
+  // 第1弾：紙吹雪
+  launchConfetti();
+
+  // 効果音（5分以内なら2回）
+  playFanfare();
+  if (isFast) {
+    setTimeout(function() { playFanfare(); }, 900);
+    // 第2弾：花火（紙吹雪が落ち着いた後）
+    setTimeout(function() { launchFireworks(); }, 2200);
+  }
+}
+
+function playFanfare() {
+  try {
+    var ac = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playNote(freq, startTime, duration, type, gainVal) {
+      var osc  = ac.createOscillator();
+      var gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, ac.currentTime + startTime);
+      gain.gain.setValueAtTime(gainVal || 0.18, ac.currentTime + startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + startTime + duration);
+      osc.start(ac.currentTime + startTime);
+      osc.stop(ac.currentTime + startTime + duration + 0.05);
+    }
+
+    // 1upっぽい上昇音階（Cメジャースケール）
+    var notes = [523, 659, 784, 1047, 880, 988, 1047];
+    var times = [0, 0.1, 0.2, 0.3, 0.45, 0.55, 0.65];
+    notes.forEach(function(freq, i) {
+      playNote(freq, times[i], 0.18, 'square', 0.15);
+    });
+
+    // 拍手っぽいホワイトノイズ（3回）
+    [0.1, 0.35, 0.6].forEach(function(t) {
+      var bufSize = ac.sampleRate * 0.12;
+      var buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+      }
+      var src  = ac.createBufferSource();
+      var gain = ac.createGain();
+      src.buffer = buf;
+      src.connect(gain);
+      gain.connect(ac.destination);
+      gain.gain.setValueAtTime(0.35, ac.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + t + 0.12);
+      src.start(ac.currentTime + t);
+    });
+
+  } catch(e) {}
+}
+
+function launchConfetti() {
+  var canvas = document.getElementById('confetti-canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  var colors = ['#f59e0b','#ef4444','#10b981','#3b82f6','#8b5cf6','#ec4899','#fff','#fde047'];
+  var pieces = [];
+  var count = 180;
+
+  for (var i = 0; i < count; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      speedX: (Math.random() - 0.5) * 4,
+      speedY: Math.random() * 5 + 3,
+      rotSpeed: (Math.random() - 0.5) * 8,
+      opacity: 1
+    });
+  }
+
+  var duration = 2800;
+  var start = null;
+
+  function draw(ts) {
+    if (!start) start = ts;
+    var elapsed = ts - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    pieces.forEach(function(p) {
+      p.x += p.speedX;
+      p.y += p.speedY;
+      p.rotation += p.rotSpeed;
+      p.opacity = Math.max(0, 1 - elapsed / duration);
+
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+      ctx.rotate(p.rotation * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+
+    if (elapsed < duration) {
+      requestAnimationFrame(draw);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  requestAnimationFrame(draw);
+}
+
+function launchFireworks() {
+  var canvas = document.getElementById('firework-canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  var particles = [];
+  var colors = ['#f59e0b','#ef4444','#10b981','#3b82f6','#8b5cf6','#ec4899','#fde047','#fff'];
+
+  function burst(cx, cy) {
+    for (var i = 0; i < 80; i++) {
+      var angle = (Math.PI * 2 / 80) * i;
+      var speed = Math.random() * 5 + 2;
+      particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 1.0,
+        decay: Math.random() * 0.018 + 0.012,
+        r: Math.random() * 3 + 1.5
+      });
+    }
+  }
+
+  // 複数箇所でバースト
+  var shots = [
+    [0.25, 0.3], [0.75, 0.25], [0.5, 0.2],
+    [0.15, 0.5], [0.85, 0.4], [0.5, 0.5]
+  ];
+  shots.forEach(function(s, i) {
+    setTimeout(function() {
+      burst(canvas.width * s[0], canvas.height * s[1]);
+    }, i * 300);
+  });
+
+  var running = true;
+  setTimeout(function() { running = false; }, 3500);
+
+  function drawFW() {
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    particles = particles.filter(function(p) { return p.life > 0; });
+    particles.forEach(function(p) {
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.06; // 重力
+      p.vx *= 0.98;
+      p.life -= p.decay;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    if (running || particles.length > 0) {
+      requestAnimationFrame(drawFW);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  requestAnimationFrame(drawFW);
+}
+
+function resetAll() {
+  bouDef.concat(coins).concat(notes).forEach(function(item) {
+    document.getElementById(item.id).value = '';
+    document.getElementById('st_' + item.id).textContent = '¥0';
+  });
+  document.getElementById('other-1').value = '';
+  document.getElementById('st_other-1').textContent = '¥0';
+  document.querySelectorAll('.other-label-input').forEach(function(el) { el.selectedIndex = 0; });
+  ['grand-total','sum-bou','sum-coin','sum-note','sum-other'].forEach(function(id) {
+    document.getElementById(id).textContent = '¥0';
+  });
+  var card = document.getElementById('diff-card');
+  var amt  = document.getElementById('diff-amount');
+  card.className = 'diff-card under';
+  amt.className  = 'diff-amount under';
+  amt.textContent = '-¥100,000　少ない';
+
+  // タイマーリセット
+  timerStopped = false;
+  timerStart = Date.now();
+  timerElapsed = 0;
+  var tv = document.getElementById('timer-val');
+  tv.textContent = '00:00';
+  tv.classList.remove('fast');
+
+  prevWasExact = false;
+}
+</script>
+</body>
+</html>
