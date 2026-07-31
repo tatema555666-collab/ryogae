@@ -408,8 +408,8 @@ tr.row-divider .td-hope { border-bottom: 3px solid var(--border2) !important; }
     font-weight: 700;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    width: 95%;
-    line-height: 1.5;
+    width: 98%;
+    line-height: 1.8;
   }
   #print-table .p-off-badge {
     display: inline-block;
@@ -461,11 +461,11 @@ tr.row-divider .td-hope { border-bottom: 3px solid var(--border2) !important; }
 #previewTable .p-day-hdr.p-sat, #previewTable .p-cell.p-sat { background: #e3eeff; }
 #previewTable .p-shift-badge {
   display: inline-block; border-radius: 2pt; color: #fff; font-weight: 700;
-  width: 95%; line-height: 1.5;
+  width: 98%; line-height: 1.8;
 }
 #previewTable .p-off-badge {
   display: inline-block; background: #888; color: #fff; border-radius: 2pt;
-  font-weight: 700; width: 95%; line-height: 1.5;
+  font-weight: 700; width: 98%; line-height: 1.8;
 }
 #previewTable .p-memo {
   font-size: 6pt; color: #1d4ed8; display: block;
@@ -1283,7 +1283,7 @@ function buildPrintTable(headerId = 'printHeader', tableId = 'print-table') {
   // 安全マージンを多めに確保し、誤差でメモ行が隠れないようにする
   const headerMm = 10, bottomDateMm = 8, memoMm = 14, safetyMm = 4;
   const rowMm = ((204 - headerMm - bottomDateMm - memoMm - safetyMm) / n).toFixed(2);
-  const fontPt = Math.max(5, Math.min(9, (parseFloat(rowMm) * 0.65))).toFixed(1);
+  const fontPt = Math.max(6, Math.min(11, (parseFloat(rowMm) * 0.85))).toFixed(1);
   // 名前用フォントは少し大きめ（6文字で枠いっぱいになるよう）
   const nameFontPt = Math.max(6, Math.min(11, (parseFloat(rowMm) * 0.85))).toFixed(1);
   // 列幅: 有効幅283mm（安全マージン込み）。名前列は6〜7文字分(約32mm) + 日付列
