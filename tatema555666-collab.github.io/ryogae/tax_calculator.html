@@ -45,14 +45,16 @@
     display: flex;
     gap: 8px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
   }
   .rate-toggle button {
     flex: 1;
-    padding: 10px;
+    min-width: 80px;
+    padding: 10px 6px;
     border: 1px solid #ddd;
     border-radius: 10px;
     background: #f9f9f9;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
   }
   .rate-toggle button.active {
@@ -100,7 +102,8 @@
   <label>消費税率</label>
   <div class="rate-toggle">
     <button id="btn10" class="active" onclick="setRate(0.10)">10%</button>
-    <button id="btn8" onclick="setRate(0.08)">8%（軽減税率）</button>
+    <button id="btn8" onclick="setRate(0.08)">8%（軽減）</button>
+    <button id="btn1" onclick="setRate(0.01)">1%</button>
   </div>
 
   <div class="result">
@@ -119,6 +122,7 @@ function setRate(r) {
   rate = r;
   document.getElementById('btn10').classList.toggle('active', r === 0.10);
   document.getElementById('btn8').classList.toggle('active', r === 0.08);
+  document.getElementById('btn1').classList.toggle('active', r === 0.01);
   calc();
 }
 
