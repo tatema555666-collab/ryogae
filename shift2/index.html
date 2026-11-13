@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f0f2f7"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="シフト表"><link rel="manifest" href="gpt-shift.webmanifest"><link rel="icon" href="icons/icon-192-green.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon-green.png"><link rel="stylesheet" href="gpt-shift.css"><script defer src="vendor/html2canvas.min.js"></script><script defer src="gpt-shift.js"></script><title>シフト表</title></head><body>
+<div id="inAppWarning" hidden><h2>Chromeで開いてください。</h2><p>右上のメニューから「ブラウザで開く」を選択してください。<br>ホーム画面への追加にはChromeやSafariを使用してください。</p><button onclick="this.parentElement.hidden=true">閉じる</button></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="topbar"><div id="topbar-row2">
+<button class="top-btn base-btn" onclick="openBaseModal()">📋 週間固定<span class="btn-sub">シフト編集</span></button>
+<button class="top-btn" onclick="openStaffModal()">👥 スタッフ<span class="btn-sub">増減・並替</span></button>
+<button class="top-btn settings-btn" onclick="openShiftSettings()">⚙️ シフト<span class="btn-sub">ボタン設定</span></button>
+<div class="menu-wrap"><button class="top-btn io-top-btn" onclick="toggleMenu('ioMenu')">💾 保存/読込<span class="btn-sub">タップで選択</span></button><div id="ioMenu" class="menu" hidden><button onclick="openExportModal()">💾 保存<small>JSONでダウンロード</small></button><button onclick="document.getElementById('importFileTop').click();hideMenus()">📥 読込<small>JSONファイルを選択</small></button></div></div>
+<div class="menu-wrap"><button class="top-btn print-btn" onclick="toggleMenu('printMenu')">🖨️ 印刷<span class="btn-sub">A4横</span></button><div id="printMenu" class="menu" hidden><button onclick="doPrint();hideMenus()">🖨️ 印刷する<small>A4横・余白なし</small></button><button onclick="openPrintPreview();hideMenus()">👁️ プレビュー<small>仕上がりを確認</small></button><button onclick="openPrintSettings();hideMenus()">⚙️ 印刷方法<small>RICOH SG2200の手順</small></button><button onclick="saveAsImage();hideMenus()">🖼️ 画像として保存<small>PNGでダウンロード</small></button></div></div>
+</div><div id="topbar-row1"><div class="month-nav"><button class="nav-btn" onclick="changeMonth(-1)" aria-label="前月">‹</button><span id="monthLabel"></span><button class="nav-btn" onclick="changeMonth(1)" aria-label="翌月">›</button></div><div class="spacer"></div><div class="half-tabs"><button class="htab on" id="tab1" onclick="setHalf(1)">【上旬】1〜15日</button><button class="htab" id="tab2" onclick="setHalf(2)">【下旬】16〜末日</button></div></div>
+<div id="pwa-bar"><span id="pwaStatus">端末に自動保存</span><button id="installBtn" onclick="installApp()">ホーム画面に追加</button></div></div>
+<input type="file" id="importFileTop" accept=".json,application/json" hidden onchange="doImport(event)">
+<div id="table-container"><table id="screen-table"></table></div>
+<div id="print-area"><div class="print-header" id="printHeader"></div><table id="print-table"></table></div>
+<div class="overlay" id="shiftOverlay"><div class="sheet"><div class="modal-header">シフト入力画面</div><div class="sheet-title" id="shiftTitle"></div><p class="hint">右上の ✕ を押すとボタンを削除できます</p><div class="shift-grid" id="shiftGrid"></div><div class="input-pair"><div><label for="customInput">手入力</label><div class="input-row"><input id="customInput" class="custom-input" placeholder="例:10-16" maxlength="10"><button class="custom-apply" onclick="applyCustom()">決定</button></div></div><div><label for="memoInput">📝 メモ</label><input class="memo-input" id="memoInput" placeholder="早退など" maxlength="20"></div></div><div class="actions"><button class="btn-cancel" onclick="closeShift(true)">キャンセル</button><button class="btn-confirm" onclick="confirmAndClose()">✓ 確定して戻る</button></div><details class="shift-details"><summary>⚙️ シフトボタンを追加・削除する</summary><div class="details-body"><div id="shiftSettingsList2"></div><div class="input-row"><input class="txt-input" id="newShiftLabel2" placeholder="例:9-15" maxlength="8"><input type="color" id="newShiftColor2" value="#0ea5e9" aria-label="新しいシフトの色"><button class="custom-apply" onclick="addCustomShift(2)">追加</button></div><button class="btn-cancel" onclick="resetShifts()">🔄 デフォルトに戻す</button></div></details></div></div>
+<div class="overlay" id="exportOverlay" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+<form class="sheet" onsubmit="doExport(event)">
+<div class="modal-header" id="exportTitle">シフトデータを保存</div>
+<label for="exportName">ファイル名</label>
+<input class="txt-input" id="exportName" type="text" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-describedby="exportNameHint exportLocation exportNameError" oninput="clearExportNameError()">
+<p class="export-name-hint" id="exportNameHint">.json は自動で付きます。使えない記号は \ / : * ? &quot; &lt; &gt; | です。</p>
+<p class="export-name-hint" id="exportLocation"><strong>Galaxyの保存先</strong>　マイファイル → ダウンロード（通常は内部ストレージの Download フォルダ）。ブラウザで保存先を変更している場合は、そのフォルダを開いてください。</p>
+<p class="export-name-error" id="exportNameError" role="alert" hidden></p>
+<div class="actions"><button type="button" class="btn-cancel" onclick="closeModal('exportOverlay')">キャンセル</button><button type="submit" class="btn-confirm">保存</button></div>
+</form>
+</div>
+<div class="overlay" id="staffOverlay"><div class="sheet"><div class="modal-header">スタッフ管理</div><div class="staff-list" id="staffListEl"></div><div class="stack"><input class="txt-input" id="newName" placeholder="名前（フルネーム可）" maxlength="10"><input class="txt-input" id="newKana" placeholder="ふりがな（ひらがな）" maxlength="20"><button class="btn-add" onclick="addStaff()">＋ 追加</button></div><button class="btn-cancel" onclick="closeModal('staffOverlay')">閉じる</button></div></div>
+<div class="overlay" id="editNameOverlay"><div class="sheet"><div class="modal-header">名前を編集</div><input type="hidden" id="editStaffId"><div class="stack"><input class="txt-input" id="editKana" placeholder="ふりがな（ひらがな）" maxlength="20"><input class="txt-input" id="editName" placeholder="名前（フルネーム可）" maxlength="10"></div><button class="btn-confirm" onclick="saveEditName()">✓ 保存</button><button class="btn-cancel" onclick="closeModal('editNameOverlay')">キャンセル</button></div></div>
+<div class="overlay" id="shiftSettingsOverlay"><div class="sheet"><div class="modal-header">⚙️ シフトボタン設定</div><p class="hint">シフトボタンの追加・削除・並び替えができます。</p><div class="staff-list" id="shiftSettingsList"></div><div class="input-row"><input class="txt-input" id="newShiftLabel" placeholder="例:9-15" maxlength="8"><input type="color" id="newShiftColor" value="#0ea5e9" aria-label="新しいシフトの色"><button class="custom-apply" onclick="addCustomShift()">追加</button></div><button class="btn-cancel" onclick="resetShifts()">🔄 デフォルトに戻す</button><button class="btn-confirm" onclick="closeModal('shiftSettingsOverlay')">✓ 閉じる</button></div></div>
+<div class="overlay" id="baseOverlay"><div class="sheet"><div class="modal-header">📋 ベースシフト設定</div><div class="actions base-actions"><button class="btn-apply" onclick="applyBase(false)">📅 適用</button><button class="btn-apply-keep" onclick="closeBaseModal()">💾 適用せず保存して閉じる</button><button class="btn-cancel" onclick="discardBaseModal()">✕ 保存せず閉じる</button></div><div id="baseBody"></div><div class="actions base-actions"><button class="btn-apply" onclick="applyBase(false)">📅 適用</button><button class="btn-apply-keep" onclick="closeBaseModal()">💾 適用せず保存して閉じる</button><button class="btn-cancel" onclick="discardBaseModal()">✕ 保存せず閉じる</button></div></div></div>
+<div class="base-shift-picker" id="bsPicker"><div class="bsp-grid" id="bspGrid"></div><label for="bspCustomInput">手入力（一時的なシフト）</label><div class="input-row"><input class="txt-input" id="bspCustomInput" placeholder="例:10-16" maxlength="10"><button class="custom-apply" onclick="applyBspCustom()">決定</button></div><label for="bspAddLabel">⚙️ ボタンを新規追加</label><div class="input-row"><input class="txt-input" id="bspAddLabel" placeholder="例:9-15" maxlength="8"><input type="color" id="bspAddColor" value="#0ea5e9" aria-label="新しいシフトの色"><button class="custom-apply" onclick="addShiftFromPicker()">追加</button></div><div class="actions"><button class="btn-cancel" onclick="pickBase('')">🗑 クリア</button><button class="btn-confirm" onclick="closeBsp()">✓ 保存して閉じる</button></div></div>
+<div class="overlay" id="printPreviewOverlay"><div class="sheet preview-modal"><div class="modal-header">👁️ 印刷プレビュー（A4横）</div><p class="hint">指2本で拡大・縮小、ダブルタップで切り替え</p><div id="previewScrollWrap"><div id="previewSheetOuter"><div id="previewSheet"><div id="previewHeader" class="print-header"></div><table id="previewTable"></table></div></div></div><div class="actions"><button class="btn-cancel" onclick="closeModal('printPreviewOverlay')">閉じる</button><button class="btn-confirm" onclick="closeModal('printPreviewOverlay');doPrint()">🖨️ この内容で印刷する</button></div></div></div>
+<div class="overlay" id="printSettingsOverlay" role="dialog" aria-modal="true" aria-labelledby="printSettingsTitle">
+<div class="sheet">
+<h2 class="modal-header" id="printSettingsTitle">印刷方法｜RICOH SG2200</h2>
+<div class="print-guide">
+<section>
+<h3>プリンターの操作</h3>
+<ol>
+<li>「メニュー」 → <strong>▲</strong> → 「OK」</li>
+<li>「実行」 → 「詳細情報」</li>
+<li><strong>▼を2回</strong> → 「OK」</li>
+</ol>
+</section>
+<section>
+<h3>スマホをWi-Fiに接続</h3>
+<ol start="4">
+<li>スマホのWi-Fi設定で接続先を選ぶ</li>
+<li>スマホにWi-Fiのパスワードを入力する</li>
+</ol>
+</section>
+<section>
+<h3>シフト表を印刷</h3>
+<ol start="6">
+<li>シフト表アプリで「印刷」 → 「印刷する」</li>
+<li>「用紙サイズ」で<strong>A4</strong>を選ぶ</li>
+<li>向きを<strong>横向き</strong>にする</li>
+<li>「印刷」を押す</li>
+</ol>
+</section>
+</div>
+<button class="btn-confirm" onclick="closeModal('printSettingsOverlay')">閉じる</button>
+</div>
+</div>
+<div id="footer-bar"><button class="foot-btn" id="undoBtn" onclick="doUndo()" disabled>↩ 戻す</button><button class="foot-btn" id="redoBtn" onclick="doRedo()" disabled>↪ 進む</button><button class="foot-btn del-btn" id="delCellBtn" onclick="doDeleteCell()" disabled>🗑 削除</button></div>
+</body></html>

@@ -1,0 +1,32 @@
+{
+  "id": "./gpt-shift.html",
+  "name": "gpt-shift シフト表",
+  "short_name": "シフト表",
+  "description": "スタッフの週間固定シフトと半月シフト表。端末保存・JSON読込・A4横印刷に対応。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f0f2f7",
+  "theme_color": "#f0f2f7",
+  "icons": [
+    {
+      "src": "icons/icon-192-green.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-green.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512-green.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
